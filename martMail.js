@@ -88,7 +88,7 @@ async function martMail() {
                 };
                 for (const [, url, innerHtml] of htmlContent.matchAll(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
                     const text = innerHtml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-                    if (url.trim().length <= 512) communicationLinks.push({ text, url: url.trim().replaceAll('mailto:', 'https://faisaln.com/martmail/'), type: url.includes('mailto') ? 'email' : 'link' });
+                    if (url.trim().length <= 512) communicationLinks.push(text.trim().endsWith('@rpi.edu') ? { text, url: `https://faisaln.com/martmail/${text}`, type: 'email' } : { text, url: url.trim().replaceAll('mailto:', 'https://faisaln.com/martmail/'), type: url.includes('mailto') ? 'email' : 'link' });
                 };
                 if (sectionHTML.includes('<iframe')) {
                     for (const [, src] of sectionHTML.matchAll(/<iframe\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
