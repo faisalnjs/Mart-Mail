@@ -1,5 +1,5 @@
 const path = require('path');
-require('node:process').loadEnvFile(path.join(process.cwd(), '.env'));
+require('node:process').loadEnvFile(path.join(__dirname, '.env'));
 const fs = require('fs').promises;
 const { JSDOM } = require('jsdom');
 var package = require('./package.json');
