@@ -87,17 +87,18 @@ async function martMail() {
             })).filter(section => section.content.length > 0).flatMap(section => {
                 var parts = [];
                 var content = section.content;
-                if (content.length <= 1024) {
+                if (content.length <= 1000) {
                     return [section];
                 } else {
                     while (content.length > 0) {
-                        var cutoff = Math.min(content.lastIndexOf(' ', 1024), 1024);
-                        if (cutoff === -1) cutoff = 1024;
+                        var cutoff = Math.min(content.lastIndexOf(' ', 1000), 1000);
+                        if (cutoff === -1) cutoff = 1000;
                         parts.push({
                             heading: parts.length ? '' : section.heading,
                             content: (content.length <= cutoff) ? content.substring(0, cutoff) : `${content.substring(0, cutoff)}...`
                         });
                         content = content.substring(cutoff).trim();
+                        if (content.length < 250) break;
                     };
                     return parts;
                 };
