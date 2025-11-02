@@ -121,7 +121,7 @@ async function martMail() {
                             "icon_url": "https://faisaln.com/Marty-Schmidt.png"
                         },
                         "description": "Rejoice fellow Schmidtizens! Our beloved president has bestowed on us yet another mailed announcement! His priceless words are affixed:\n\n--------------------------",
-                        "title": `Incoming Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''}: ${communicationTitle}`,
+                        "title": `Incoming Mail #${total - communicationsArray.indexOf(communicationItem)}: ${communicationTitle}`,
                         "thumbnail": {
                             "url": `${process.env.DOMAIN}${communicationImage}`
                         },
