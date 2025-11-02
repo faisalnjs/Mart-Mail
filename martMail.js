@@ -55,6 +55,7 @@ async function martMail() {
         var lastSentDateSent = null;
         for (var i = 0; i < toSend.length; i++) {
             const communicationItem = toSend[i];
+            if ((total - communicationsArray.indexOf(communicationItem)) !== 7) continue;
             const communicationDateTime = communicationItem.querySelector('time')?.getAttribute('datetime');
             const communicationURL = communicationItem.querySelector('a')?.getAttribute('href');
             console.log(`Sending Mart Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''} - ${new Date(communicationDateTime)}`);
@@ -69,6 +70,8 @@ async function martMail() {
             const communicationLinks = [];
             const communicationEmbeds = [];
             const communicationSections = Array.from(communicationDOM.window.document.querySelector('.text-formatted').children).flatMap(communicationSection => Array.from(communicationSection.innerHTML.split('<br><br>')).map(sectionHTML => {
+                sectionHTML = sectionHTML.replaceAll('&nbsp;<br>\n', '').trim().replaceAll('&nbsp;<br>', '').trim().replaceAll('&nbsp;', ' ').trim();
+                console.log(sectionHTML)
                 const section = new JSDOM(`<!DOCTYPE html>${sectionHTML}`).window.document;
                 var content = '';
                 switch (communicationSection.tagName.toLowerCase()) {
@@ -132,48 +135,57 @@ async function martMail() {
                     "inline": false
                 };
             });
+            const embed = {
+                color: parseInt(communicationColor.replace('#', ''), 16),
+                author: {
+                    name: `President ${communicationAuthor}`,
+                    url: process.env.DOMAIN,
+                    icon_url: 'https://faisaln.com/Marty-Schmidt.png',
+                },
+                title: `Incoming Mail #${total - communicationsArray.indexOf(communicationItem)}: ${communicationTitle}`,
+                thumbnail: { url: `${process.env.DOMAIN}${communicationImage}` },
+                url: `${process.env.DOMAIN}${communicationURL}`,
+                footer: {
+                    text: `Mart Mail - Official Marty Schmidt Fanclub • ${martStats.totalSent + 1} Mart Mails Sent`,
+                    icon_url: 'https://faisaln.com/Mart-Mail.png',
+                },
+                timestamp: new Date(communicationDateTime).toISOString(),
+                description: 'Rejoice fellow Schmidtizens! Our beloved president has bestowed on us yet another mailed announcement! His priceless words are affixed:\n\n--------------------------',
+                fields: [],
+            };
+            for (let k = 0; k < communicationSections.length; k++) {
+                const field = {
+                    name: communicationSections[k].name,
+                    value: communicationSections[k].value,
+                    inline: !!communicationSections[k].inline,
+                };
+                if ((JSON.stringify(embed).length + JSON.stringify(field).length) > 6000) {
+                    const remaining = 6000 - JSON.stringify(embed).length - JSON.stringify({ name: field.name, value: '', inline: field.inline }).length;
+                    if (remaining > 20) {
+                        field.value = field.value.slice(0, remaining - 3) + '...';
+                        embed.fields.push(field);
+                    };
+                    break;
+                };
+                embed.fields.push(field);
+            };
+            const imageEmbeds = communicationEmbeds.map(img => ({
+                color: embed.color,
+                image: { url: img.url, content_type: img.content_type },
+            }));
+            const embeds = [embed];
+            for (const imageEmbed of imageEmbeds) {
+                if ((JSON.stringify(embeds).length + JSON.stringify(imageEmbed).length) <= 6000) {
+                    embeds.push(imageEmbed);
+                } else {
+                    embed.description += `\n[Image](${imageEmbed.image.url})`;
+                };
+            };
             await sendWebhook({
                 "username": "Mart Mail",
                 "avatar_url": "https://faisaln.com/Mart-Mail.png",
                 "content": "<@905990944858451988>",
-                "embeds": [
-                    {
-                        "color": parseInt(communicationColor.replace('#', ''), 16),
-                        "author": {
-                            "name": `President ${communicationAuthor}`,
-                            "url": process.env.DOMAIN,
-                            "icon_url": "https://faisaln.com/Marty-Schmidt.png"
-                        },
-                        "description": "Rejoice fellow Schmidtizens! Our beloved president has bestowed on us yet another mailed announcement! His priceless words are affixed:\n\n--------------------------",
-                        "title": `Incoming Mail #${total - communicationsArray.indexOf(communicationItem)}: ${communicationTitle}`,
-                        "thumbnail": {
-                            "url": `${process.env.DOMAIN}${communicationImage}`
-                        },
-                        "fields": (communicationSections.length > 25) ? [
-                            ...communicationSections.slice(0, 24),
-                            {
-                                "name": "",
-                                "value": `--------------------------\nRead the next ${communicationSections.length - 25} paragraph${((communicationSections.length - 25) > 1) ? 's' : ''} below:`,
-                                "inline": false
-                            }
-                        ] : communicationSections.slice(0, 25),
-                        "url": `${process.env.DOMAIN}${communicationURL}`,
-                        "footer": {
-                            "text": `Mart Mail - Official Marty Schmidt Fanclub • ${martStats.totalSent + 1} Mart Mails Sent`,
-                            "icon_url": "https://faisaln.com/Mart-Mail.png"
-                        },
-                        "timestamp": new Date(communicationDateTime).toISOString()
-                    },
-                    ...communicationEmbeds.map(embed => {
-                        return {
-                            "color": parseInt(communicationColor.replace('#', ''), 16),
-                            "image": {
-                                "url": embed.url,
-                                "content_type": embed.content_type
-                            }
-                        };
-                    })
-                ],
+                "embeds": embeds,
                 "components": [
                     {
                         "type": 1,
@@ -190,7 +202,7 @@ async function martMail() {
                             {
                                 "type": 2,
                                 "style": 5,
-                                "label": `Read ${(communicationSections.length > 25) ? 'the rest' : 'it online'}`,
+                                "label": `Read ${((communicationSections.length > 25) || (JSON.stringify(embed).length >= 5750)) ? 'the rest' : 'it online'}`,
                                 "emoji": {
                                     "name": "📃"
                                 },
