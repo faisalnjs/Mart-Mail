@@ -55,7 +55,6 @@ async function martMail() {
         var lastSentDateSent = null;
         for (var i = 0; i < toSend.length; i++) {
             const communicationItem = toSend[i];
-            if ((total - communicationsArray.indexOf(communicationItem)) !== 7) continue;
             const communicationDateTime = communicationItem.querySelector('time')?.getAttribute('datetime');
             const communicationURL = communicationItem.querySelector('a')?.getAttribute('href');
             console.log(`Sending Mart Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''} - ${new Date(communicationDateTime)}`);
@@ -71,7 +70,6 @@ async function martMail() {
             const communicationEmbeds = [];
             const communicationSections = Array.from(communicationDOM.window.document.querySelector('.text-formatted').children).flatMap(communicationSection => Array.from(communicationSection.innerHTML.split('<br><br>')).map(sectionHTML => {
                 sectionHTML = sectionHTML.replaceAll('&nbsp;<br>\n', '').trim().replaceAll('&nbsp;<br>', '').trim().replaceAll('&nbsp;', ' ').trim();
-                console.log(sectionHTML)
                 const section = new JSDOM(`<!DOCTYPE html>${sectionHTML}`).window.document;
                 var content = '';
                 switch (communicationSection.tagName.toLowerCase()) {
