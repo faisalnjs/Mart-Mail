@@ -159,7 +159,7 @@ async function martMail() {
                         ] : communicationSections.slice(0, 25),
                         "url": `${process.env.DOMAIN}${communicationURL}`,
                         "footer": {
-                            "text": "Mart Mail - Official Marty Schmidt Fanclub",
+                            "text": `Mart Mail - Official Marty Schmidt Fanclub • ${martStats.totalSent + 1} Mart Mails Sent`,
                             "icon_url": "https://faisaln.com/Mart-Mail.png"
                         },
                         "timestamp": new Date(communicationDateTime).toISOString()
