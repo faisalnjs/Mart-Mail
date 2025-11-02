@@ -67,6 +67,7 @@ async function martMail() {
             if (!communicationAuthor.includes('Schmidt')) continue;
             const communicationTitle = communicationDOM.window.document.querySelector('.field--name-title')?.textContent.trim();
             const communicationLinks = [];
+            const communicationEmbeds = [];
             const communicationSections = Array.from(communicationDOM.window.document.querySelector('.text-formatted').children).flatMap(communicationSection => Array.from(communicationSection.innerHTML.split('<br><br>')).map(sectionHTML => {
                 const section = new JSDOM(`<!DOCTYPE html>${sectionHTML}`).window.document;
                 var content = '';
@@ -86,7 +87,22 @@ async function martMail() {
                 };
                 for (const [, url, innerHtml] of htmlContent.matchAll(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
                     const text = innerHtml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-                    if (url.trim().length <= 512) communicationLinks.push({ text, url: url.trim() });
+                    if (url.trim().length <= 512) communicationLinks.push({ text, url: url.trim(), type: 'link' });
+                };
+                if (sectionHTML.includes('<iframe')) {
+                    for (const [, src] of sectionHTML.matchAll(/<iframe\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
+                        communicationLinks.push({ text: 'Watch video', url: src.trim(), type: 'video' })
+                    };
+                };
+                if (sectionHTML.includes('<video')) {
+                    for (const [, src] of sectionHTML.matchAll(/<video\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
+                        communicationEmbeds.push({ url: src.trim(), content_type: 'video/mp4' });
+                    };
+                };
+                if (sectionHTML.includes('<img')) {
+                    for (const [, src] of sectionHTML.matchAll(/<img\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
+                        communicationEmbeds.push({ url: src.trim(), content_type: 'image/png' });
+                    };
                 };
                 return {
                     heading: (section.querySelector('span:has(strong)') && (section.querySelector('span:has(strong)').textContent.length < 50)) ? section.querySelector('span:has(strong)').textContent.trim() : null,
@@ -147,7 +163,16 @@ async function martMail() {
                             "icon_url": "https://faisaln.com/Mart-Mail.png"
                         },
                         "timestamp": new Date(communicationDateTime).toISOString()
-                    }
+                    },
+                    ...communicationEmbeds.map(embed => {
+                        return {
+                            "color": parseInt(communicationColor.replace('#', ''), 16),
+                            "image": {
+                                "url": embed.url,
+                                "content_type": embed.content_type
+                            }
+                        };
+                    })
                 ],
                 "components": [
                     {
@@ -174,9 +199,9 @@ async function martMail() {
                             ...communicationLinks.slice(0, 3).map(link => ({
                                 "type": 2,
                                 "style": 5,
-                                "label": link.text.length > 80 ? `${link.text.substring(0, 77)}...` : link.text,
+                                "label": link.text.includes('http') ? "Open link" : ((link.text.length > 80) ? `${link.text.substring(0, 77)}...` : link.text),
                                 "emoji": {
-                                    "name": "🔗"
+                                    "name": (link.type === 'video') ? "📺" : "🔗"
                                 },
                                 "url": link.url
                             }))
@@ -186,9 +211,9 @@ async function martMail() {
                             "components": linkGroup.map(link => ({
                                 "type": 2,
                                 "style": 5,
-                                "label": link.text.length > 80 ? `${link.text.substring(0, 77)}...` : link.text,
+                                "label": link.text.includes('http') ? "Open link" : ((link.text.length > 80) ? `${link.text.substring(0, 77)}...` : link.text),
                                 "emoji": {
-                                    "name": "🔗"
+                                    "name": (link.type === 'video') ? "📺" : "🔗"
                                 },
                                 "url": link.url
                             }))
