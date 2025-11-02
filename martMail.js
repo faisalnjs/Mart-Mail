@@ -145,7 +145,7 @@ async function martMail() {
                 thumbnail: { url: `${process.env.DOMAIN}${communicationImage}` },
                 url: `${process.env.DOMAIN}${communicationURL}`,
                 footer: {
-                    text: `Mart Mail v${package.version} •${martStats.totalSent + 1} Mart Mails Sent`,
+                    text: `Mart Mail v${package.version} • ${martStats.totalSent + 1} Mart Mail${((martStats.totalSent + 1) > 1) ? 's' : ''} Sent`,
                     icon_url: 'https://faisaln.com/Mart-Mail.png',
                 },
                 timestamp: new Date(communicationDateTime).toISOString(),
