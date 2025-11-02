@@ -13,13 +13,21 @@
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"keywords": [
-		"rpi",
-		"martin",
-		"schmidt",
-		"president",
-		"email",
 		"notifications",
-		"fanclub"
+		"rpi",
+		"email",
+		"emails",
+		"president",
+		"schmidt",
+		"announcements",
+		"martin",
+		"marty",
+		"fanclub",
+		"rensselaer-polytechnic-institute",
+		"communicatons",
+		"marty-schmidt",
+		"martin-a-schmidt",
+		"martin-schmidt"
 	],
 	"author": "Faisal Nageer",
 	"license": "BSL-1.0",
