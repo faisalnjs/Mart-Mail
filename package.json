@@ -1,6 +1,6 @@
 {
 	"name": "mart-mail",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "Sends RPI President Martin A. Schmidt's official email announcements to the Official Marty Schmidt Fanclub.",
 	"main": "martMail.js",
 	"files": [
