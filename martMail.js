@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const { JSDOM } = require('jsdom');
 var package = require('./package.json');
 var martStats = require('./martStats.json');
+var sentMail = require('./sentMail.json');
 
 async function updateMartStats(field, value) {
     const file = path.resolve(__dirname, 'martStats.json');
@@ -13,6 +14,16 @@ async function updateMartStats(field, value) {
     await fs.writeFile(file, JSON.stringify(stats, null, 2), 'utf8');
     delete require.cache[require.resolve('./martStats.json')];
     martStats = require('./martStats.json');
+};
+
+async function updateSentMail(id) {
+    const file = path.resolve(__dirname, 'sentMail.json');
+    const raw = await fs.readFile(file, 'utf8');
+    var sent = JSON.parse(raw);
+    sent.push(id);
+    await fs.writeFile(file, JSON.stringify(sent, null, 2), 'utf8');
+    delete require.cache[require.resolve('./sentMail.json')];
+    sentMail = require('./sentMail.json');
 };
 
 async function sendWebhook(params) {
@@ -54,14 +65,13 @@ async function martMail() {
         const communicationsArray = Array.from(communications);
         const toSend = communicationsArray.filter(item => {
             const dateTime = item.querySelector('time')?.getAttribute('datetime');
-            return dateTime && new Date(dateTime) > new Date(martStats.lastSent);
+            return dateTime && (new Date(dateTime) > new Date(martStats.lastSent)) && (new Date(new Date().setDate(new Date().getDate() - 1)) <= new Date(dateTime));
         }).sort((a, b) => new Date(a.querySelector('time')?.getAttribute('datetime')) - new Date(b.querySelector('time')?.getAttribute('datetime')));
         var lastSentDateSent = null;
         for (var i = 0; i < toSend.length; i++) {
             const communicationItem = toSend[i];
             const communicationDateTime = communicationItem.querySelector('time')?.getAttribute('datetime');
             const communicationURL = communicationItem.querySelector('a')?.getAttribute('href');
-            console.log(`Sending Mart Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''} - ${new Date(communicationDateTime)}`);
             const communicationHTML = await fetch(`${process.env.DOMAIN}${communicationURL}`);
             const communicationText = await communicationHTML.text();
             const communicationDOM = new JSDOM(communicationText);
@@ -70,6 +80,8 @@ async function martMail() {
             const communicationAuthor = communicationDOM.window.document.querySelector('.site-title .navbar-brand')?.textContent.replace(/\s+/g, ' ').trim();
             if (!communicationAuthor.includes('Schmidt')) continue;
             const communicationTitle = communicationDOM.window.document.querySelector('.field--name-title')?.textContent.trim();
+            if (sentMail.includes(communicationTitle)) return;
+            console.log(`Sending Mart Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''} - ${new Date(communicationDateTime)}`);
             const communicationLinks = [];
             const communicationEmbeds = [];
             const communicationSections = Array.from(communicationDOM.window.document.querySelector('.text-formatted').children).flatMap(communicationSection => Array.from(communicationSection.innerHTML.split('<br><br>')).map(sectionHTML => {
@@ -262,6 +274,7 @@ async function martMail() {
                 "attachments": []
             });
             await updateMartStats('totalSent', 1);
+            await updateSentMail(communicationTitle);
             lastSentDateSent = communicationDateTime;
             await new Promise(resolve => setTimeout(resolve, 1500));
             console.log(`Sent Mart Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''} - ${new Date(communicationDateTime)}`);
