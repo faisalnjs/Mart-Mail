@@ -10,7 +10,7 @@ async function updateMartStats(field, value) {
     const file = path.resolve(__dirname, 'martStats.json');
     const raw = await fs.readFile(file, 'utf8');
     var stats = JSON.parse(raw);
-    stats[field] = (field === 'totalSent') ? (stats.totalSent || 0) + 1 : value;
+    stats[field] = value;
     await fs.writeFile(file, JSON.stringify(stats, null, 2), 'utf8');
     delete require.cache[require.resolve('./martStats.json')];
     martStats = require('./martStats.json');
@@ -84,95 +84,82 @@ async function martMail() {
             console.log(`Sending Mart Mail #${total - communicationsArray.indexOf(communicationItem)}${(total - communicationsArray.indexOf(communicationItem) != total) ? `/${total}` : ''} - ${new Date(communicationDateTime)}`);
             const communicationLinks = [];
             const communicationEmbeds = [];
-            const communicationSections = Array.from(communicationDOM.window.document.querySelector('.text-formatted').children).flatMap(communicationSection => Array.from(communicationSection.innerHTML.split('<br><br>')).map(sectionHTML => {
+            const rawSections = Array.from(communicationDOM.window.document.querySelector('.text-formatted').children).flatMap(communicationSection => Array.from(communicationSection.innerHTML.split(/<br>\s*<br>/i)).map(sectionHTML => {
                 sectionHTML = sectionHTML.replaceAll('&nbsp;<br>\n', '').trim().replaceAll('&nbsp;<br>', '').trim().replaceAll('&nbsp;', ' ').trim();
                 const section = new JSDOM(`<!DOCTYPE html>${sectionHTML}`).window.document;
                 var content = '';
                 switch (communicationSection.tagName.toLowerCase()) {
                     case 'ul':
-                        htmlContent = Array.from(section.querySelectorAll('li')).map(li => `* ${li.innerHTML.trim()}`).join('\n').trim();
-                        content = Array.from(section.querySelectorAll('li')).map(li => `* ${new JSDOM(`<!DOCTYPE html>${li.innerHTML}`).window.document.body.textContent.trim()}`).join('\n').trim();
+                        content = Array.from(section.querySelectorAll('li'))
+                            .map(li => `* ${new JSDOM(`<!DOCTYPE html>${li.innerHTML}`).window.document.body.textContent.trim()}`)
+                            .join('\n').trim();
                         break;
                     case 'ol':
-                        htmlContent = Array.from(section.querySelectorAll('li')).map((li, j) => `${j + 1}. ${li.innerHTML.trim()}`).join('\n').trim();
-                        content = Array.from(section.querySelectorAll('li')).map((li, j) => `${j + 1}. ${new JSDOM(`<!DOCTYPE html>${li.innerHTML}`).window.document.body.textContent.trim()}`).join('\n').trim();
+                        content = Array.from(section.querySelectorAll('li'))
+                            .map((li, j) => `${j + 1}. ${new JSDOM(`<!DOCTYPE html>${li.innerHTML}`).window.document.body.textContent.trim()}`)
+                            .join('\n').trim();
                         break;
                     default:
-                        htmlContent = section.body.innerHTML.replaceAll('<br>', '\n').trim();
                         content = new JSDOM(`<!DOCTYPE html>${(((section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)')) && ((section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)')).textContent.length < 50)) ? new JSDOM(`<!DOCTYPE html>${sectionHTML.split((section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)')).outerHTML)[1]}`).window.document : section).body.innerHTML.replaceAll('<br>', '\n')}`).window.document.body.textContent.trim();
                         break;
                 };
-                for (const match of htmlContent.matchAll(/<a\b[^>]*\bhref\s*=\s*(?:'([^']*)'|"([^"]*)"|([^>\s]+))[^>]*>([\s\S]*?)<\/a>/gi)) {
-                    const url = (match[1] || match[2] || match[3] || '').trim();
-                    const text = (match[4] || '').trim().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').replace(/\.$/, '').trim();
-                    if (!url) continue;
-                    if (url.length <= 512) communicationLinks.push(text.endsWith('@rpi.edu') ? {
-                        text,
-                        url: String(`https://faisaln.com/scripts/mart-mail/${text}`).replace(/['"]/g, ''),
-                        type: 'email'
-                    } : {
-                        text,
-                        url: url.replace(/mailto:/i, 'https://faisaln.com/scripts/mart-mail/').replace(/['"]/g, ''),
-                        type: /mailto:/i.test(url) ? 'email' : 'link'
-                    });
-                };
-                if (sectionHTML.includes('<iframe')) {
-                    for (const [, src] of sectionHTML.matchAll(/<iframe\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
-                        communicationLinks.push({ text: 'Watch video', url: src.replaceAll('"', '').trim(), type: 'video' })
-                    };
-                };
-                if (sectionHTML.includes('<video')) {
-                    for (const [, src] of sectionHTML.matchAll(/<video\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
-                        communicationEmbeds.push({ url: src.trim(), content_type: 'video/mp4' });
-                    };
-                };
-                if (sectionHTML.includes('<img')) {
-                    for (const [, src] of sectionHTML.matchAll(/<img\s+[^>]*src="([^"]+)"[^>]*>/gi)) {
-                        communicationEmbeds.push({ url: src.trim(), content_type: 'image/png' });
-                    };
-                };
+                const headingElem = (section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)'));
+                const heading = headingElem && headingElem.textContent.length < 50 ? headingElem.textContent.trim() : null;
                 return {
-                    heading: ((section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)')) && ((section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)')).textContent.length < 50)) ? (section.querySelector('span:has(strong)') || section.querySelector(':has(> strong)')).textContent.trim() : null,
-                    content: (content || '').replaceAll('undefined', '').trim(),
+                    heading,
+                    content: (content || '').replaceAll('undefined', '').trim()
                 };
-            })).flatMap(section => {
-                var content = section.content || '';
-                if (content.length <= 1000) return [section];
-                const parts = [];
-                while (content.length > 0) {
-                    var cutoff = content.lastIndexOf(' ', 1000);
-                    if (cutoff === -1) cutoff = 1000;
-                    const remaining = content.length - cutoff;
-                    if (remaining > 0 && remaining < 30) cutoff = content.length;
-                    const chunk = content.substring(0, cutoff);
-                    parts.push({
-                        heading: parts.length ? '' : section.heading,
-                        content: (content.length <= cutoff) ? chunk : `${chunk}...`
-                    });
-                    content = content.substring(cutoff).trim();
-                };
-                return parts;
-            }).map(communicationSection => {
-                return {
-                    "name": communicationSection.heading || "",
-                    "value": communicationSection.content || "",
-                    "inline": false
-                };
-            }).reduce((acc, section, index, arr) => {
-                {
-                    if (section.name && !section.value && arr[index + 1] && !arr[index + 1].name && arr[index + 1].value) {
-                        acc.push({
-                            name: section.name,
-                            value: arr[index + 1].value || "",
-                            inline: false
-                        });
-                        index++;
-                    } else if (!(section.name && !section.value)) {
-                        acc.push(section);
+            }));
+            const communicationSections = [];
+            var current = null;
+            for (const sec of rawSections) {
+                if (!sec.heading && !sec.content) continue;
+                if (sec.heading && !sec.content) {
+                    current = {
+                        heading: sec.heading,
+                        content: ''
                     };
-                    return acc;
-                }
-            }, []);
+                    communicationSections.push(current);
+                    continue;
+                };
+                if (current && current.heading && !current.content) {
+                    current.content = sec.content;
+                    continue;
+                };
+                if (!current) {
+                    current = {
+                        heading: sec.heading || '',
+                        content: sec.content || ''
+                    };
+                    communicationSections.push(current);
+                    continue;
+                };
+                if ((current.content.length + sec.content.length + 2) <= 1000) {
+                    current.content = (current.content ? (current.content + '\n\n') : '') + (sec.content || '');
+                } else {
+                    current = {
+                        heading: sec.heading || '',
+                        content: sec.content || ''
+                    };
+                    communicationSections.push(current);
+                };
+            };
+            var sectionsForEmbed = communicationSections.filter(s => s.content && s.content.trim());
+            if (sectionsForEmbed.length > 25) {
+                const tail = sectionsForEmbed.slice(24);
+                sectionsForEmbed = [
+                    ...sectionsForEmbed.slice(0, 24),
+                    {
+                        heading: tail[0].heading || '',
+                        content: tail.map(t => t.heading ? `**${t.heading}**\n${t.content}` : t.content).join('\n\n')
+                    }
+                ];
+            };
+            const communicationSectionsFields = sectionsForEmbed.map(s => ({
+                name: s.heading || "",
+                value: (s.content || "").slice(0, 1024),
+                inline: false
+            }));
             const embed = {
                 color: parseInt(communicationColor.replace('#', ''), 16),
                 author: {
@@ -184,17 +171,17 @@ async function martMail() {
                 thumbnail: { url: `${process.env.DOMAIN}${communicationImage}` },
                 url: `${process.env.DOMAIN}${communicationURL}`,
                 footer: {
-                    text: `Mart Mail v${package.version} • ${martStats.totalSent + 1} Mart Mail${((martStats.totalSent + 1) > 1) ? 's' : ''} Sent`,
+                    text: `Mart Mail v${package.version} • The Official Marty Schmidt Fanclub`,
                     icon_url: 'https://faisaln.com/Mart-Mail.png',
                 },
                 timestamp: new Date(communicationDateTime).toISOString(),
                 fields: [],
             };
-            for (let k = 0; k < communicationSections.length; k++) {
+            for (var k = 0; k < communicationSectionsFields.length; k++) {
                 const field = {
-                    name: communicationSections[k].name,
-                    value: communicationSections[k].value,
-                    inline: !!communicationSections[k].inline,
+                    name: communicationSectionsFields[k].name,
+                    value: communicationSectionsFields[k].value,
+                    inline: !!communicationSectionsFields[k].inline,
                 };
                 if ((JSON.stringify(embed).length + JSON.stringify(field).length) > 6000) {
                     const remaining = 6000 - JSON.stringify(embed).length - JSON.stringify({ name: field.name, value: '', inline: field.inline }).length;
@@ -273,7 +260,6 @@ async function martMail() {
                 ],
                 "attachments": []
             });
-            await updateMartStats('totalSent', 1);
             await updateSentMail(communicationTitle);
             lastSentDateSent = communicationDateTime;
             await new Promise(resolve => setTimeout(resolve, 1500));
